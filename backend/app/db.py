@@ -24,13 +24,15 @@ def init_db(database_path):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 action TEXT NOT NULL,
+                direction TEXT NOT NULL,
                 protocol TEXT NOT NULL DEFAULT 'any',
-                source_ip TEXT,
-                source_port TEXT,
-                destination_ip TEXT,
-                destination_port TEXT,
+                src_ip TEXT,
+                dst_ip TEXT,
+                src_port TEXT,
+                dst_port TEXT,
                 enabled INTEGER NOT NULL DEFAULT 1,
                 priority INTEGER NOT NULL DEFAULT 100,
+                dsl_text TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -40,7 +42,7 @@ def init_db(database_path):
                 rule_id INTEGER,
                 operation TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending',
-                error_message TEXT,
+                message TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 applied_at TEXT,
                 FOREIGN KEY (rule_id) REFERENCES rules(id) ON DELETE SET NULL
@@ -49,36 +51,46 @@ def init_db(database_path):
             CREATE TABLE IF NOT EXISTS traffic_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                source_ip TEXT,
-                source_port INTEGER,
-                destination_ip TEXT,
-                destination_port INTEGER,
+                src_ip TEXT,
+                dst_ip TEXT,
+                src_port INTEGER,
+                dst_port INTEGER,
                 protocol TEXT,
+                direction TEXT,
                 action TEXT,
-                packet_size INTEGER
+                rule_id INTEGER,
+                packet_len INTEGER,
+                reason TEXT,
+                FOREIGN KEY (rule_id) REFERENCES rules(id) ON DELETE SET NULL
             );
 
             CREATE TABLE IF NOT EXISTS system_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 level TEXT NOT NULL,
+                module TEXT,
                 message TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
+                value TEXT NOT NULL,
+                description TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """
         )
         conn.executemany(
-            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+            """
+            INSERT OR IGNORE INTO settings (key, value, description)
+            VALUES (?, ?, ?)
+            """,
             [
-                ('interface', DEFAULT_INTERFACE),
-                ('iptables_enabled', '0'),
-                ('sniffer_enabled', '0'),
-                ('update_mode', DEFAULT_UPDATE_MODE),
-                ('update_interval', str(DEFAULT_UPDATE_INTERVAL)),
-                ('update_batch_size', str(DEFAULT_UPDATE_BATCH_SIZE)),
+                ('interface', DEFAULT_INTERFACE, 'Network interface to monitor'),
+                ('iptables_enabled', '0', 'Whether iptables enforcement is enabled'),
+                ('sniffer_enabled', '0', 'Whether packet sniffing is enabled'),
+                ('update_mode', DEFAULT_UPDATE_MODE, 'Rule update application mode'),
+                ('update_interval', str(DEFAULT_UPDATE_INTERVAL), 'Rule update interval in seconds'),
+                ('update_batch_size', str(DEFAULT_UPDATE_BATCH_SIZE), 'Rule update batch size'),
             ],
         )
