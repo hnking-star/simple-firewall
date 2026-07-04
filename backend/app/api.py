@@ -41,9 +41,9 @@ def _bad_request(message):
 
 def _json_object():
     """Return request JSON as an object, or an error response."""
-    data = request.get_json(silent=True)
-    if data is None:
+    if not request.get_data(cache=True):
         return {}, None
+    data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return None, _bad_request('request body must be a JSON object')
     return data, None

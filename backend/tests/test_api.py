@@ -1,6 +1,8 @@
 import sqlite3
 from unittest.mock import Mock
 
+import pytest
+
 from app import create_app
 
 
@@ -219,7 +221,8 @@ def test_recent_traffic_returns_log_items(client):
     assert response.get_json() == {'items': []}
 
 
-def test_object_body_endpoints_reject_json_arrays(client):
+@pytest.mark.parametrize('body', ['[]', 'null', '"text"', '1', 'true'])
+def test_object_body_endpoints_reject_non_object_json(client, body):
     endpoints = [
         ('post', '/api/rules'),
         ('post', '/api/rules/parse'),
@@ -228,7 +231,9 @@ def test_object_body_endpoints_reject_json_arrays(client):
     ]
 
     for method, path in endpoints:
-        response = getattr(client, method)(path, json=[])
+        response = getattr(client, method)(
+            path, data=body, content_type='application/json'
+        )
 
         assert response.status_code == 400
         assert response.get_json() == {
