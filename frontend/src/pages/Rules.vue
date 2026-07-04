@@ -32,7 +32,7 @@
             <td>{{ rule.direction }}</td>
             <td>{{ rule.protocol }}</td>
             <td>{{ rule.src_ip }}:{{ rule.src_port }}</td>
-            <td>{{ rule.dst_ip }}:{{ rule.dst_port }}</td>
+            <td>{{ rule.dst_ip }}</td>
             <td>{{ rule.dst_port }}</td>
             <td>{{ rule.enabled ? '是' : '否' }}</td>
             <td>{{ rule.priority }}</td>

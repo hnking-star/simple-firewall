@@ -41,6 +41,7 @@ const pieEl = ref(null)
 let lineChart = null
 let pieChart = null
 let timer = null
+let alive = false
 
 const statItems = [
   { key: 'blocked_count', label: '拦截数量' },
@@ -52,6 +53,7 @@ const statItems = [
 const labels = computed(() => history.value.map((item) => item.time))
 
 function initCharts() {
+  if (!alive) return
   if (!lineChart && lineEl.value) {
     lineChart = echarts.init(lineEl.value)
   }
@@ -61,6 +63,7 @@ function initCharts() {
 }
 
 function renderCharts() {
+  if (!alive) return
   initCharts()
   if (lineChart) {
     lineChart.setOption({
@@ -94,6 +97,7 @@ function renderCharts() {
 async function loadStats() {
   try {
     const { data } = await api.get('/stats')
+    if (!alive) return
     stats.value = { ...stats.value, ...data }
     history.value.push({
       time: new Date().toLocaleTimeString(),
@@ -103,27 +107,34 @@ async function loadStats() {
     history.value = history.value.slice(-12)
     error.value = ''
     await nextTick()
+    if (!alive) return
     renderCharts()
   } catch (err) {
+    if (!alive) return
     error.value = errorMessage(err, '统计加载失败')
   }
 }
 
 function resizeCharts() {
+  if (!alive) return
   lineChart?.resize()
   pieChart?.resize()
 }
 
 onMounted(() => {
+  alive = true
   loadStats()
   timer = window.setInterval(loadStats, 2000)
   window.addEventListener('resize', resizeCharts)
 })
 
 onBeforeUnmount(() => {
+  alive = false
   window.clearInterval(timer)
   window.removeEventListener('resize', resizeCharts)
   lineChart?.dispose()
   pieChart?.dispose()
+  lineChart = null
+  pieChart = null
 })
 </script>
