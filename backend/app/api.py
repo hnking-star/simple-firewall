@@ -29,6 +29,14 @@ def _bad_request(message):
     return jsonify({'error': message}), 400
 
 
+def _dsl_text(data):
+    """Return valid DSL text or None when invalid."""
+    value = data.get('dsl_text')
+    if not isinstance(value, str) or not value:
+        return None
+    return value
+
+
 @api.get('/health')
 def health():
     """Return service health status."""
@@ -45,7 +53,9 @@ def rules_index():
 def rules_create():
     """Create a firewall rule from DSL text."""
     data = request.get_json(silent=True) or {}
-    dsl_text = data.get('dsl_text', '')
+    dsl_text = _dsl_text(data)
+    if dsl_text is None:
+        return _bad_request('dsl_text must be a non-empty string')
     name = data.get('name', '')
     if not name:
         return _bad_request('Missing name')
@@ -69,8 +79,11 @@ def rules_create():
 def rules_parse():
     """Parse firewall rule DSL without storing it."""
     data = request.get_json(silent=True) or {}
+    dsl_text = _dsl_text(data)
+    if dsl_text is None:
+        return _bad_request('dsl_text must be a non-empty string')
     try:
-        rule = RuleParser.parse(data.get('dsl_text', ''))
+        rule = RuleParser.parse(dsl_text)
     except RuleParserError as exc:
         return _bad_request(str(exc))
     return jsonify(_rule_to_dict(rule))

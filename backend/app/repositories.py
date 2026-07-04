@@ -43,7 +43,11 @@ def create_rule(database_path, rule, name, enabled=True, priority=100, dsl_text=
             ),
         )
         conn.commit()
-        return get_rule(database_path, cursor.lastrowid)
+        row = conn.execute(
+            f"SELECT {', '.join(RULE_COLUMNS)} FROM rules WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+        return row_to_dict(row)
     finally:
         conn.close()
 

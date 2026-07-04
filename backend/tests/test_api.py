@@ -107,3 +107,43 @@ def test_parse_rule_endpoint(client):
     })
     assert response.status_code == 200
     assert response.get_json()['dst_port'] == '22'
+
+
+def assert_json_error(response):
+    """Assert that an API response is a JSON 400 error."""
+    assert response.status_code == 400
+    assert 'error' in response.get_json()
+
+
+def test_create_rule_rejects_missing_or_empty_dsl_text(client):
+    for dsl_text in (None, ''):
+        response = client.post('/api/rules', json={
+            'name': 'bad rule',
+            'dsl_text': dsl_text,
+        })
+        assert response.status_code == 400
+        assert response.get_json() == {
+            'error': 'dsl_text must be a non-empty string'
+        }
+
+
+def test_parse_rule_rejects_missing_or_empty_dsl_text(client):
+    for dsl_text in (None, ''):
+        response = client.post('/api/rules/parse', json={'dsl_text': dsl_text})
+        assert response.status_code == 400
+        assert response.get_json() == {
+            'error': 'dsl_text must be a non-empty string'
+        }
+
+
+def test_rule_endpoints_reject_invalid_dsl(client):
+    create_response = client.post('/api/rules', json={
+        'name': 'bad rule',
+        'dsl_text': 'BLOCK OUT UDP FROM ANY TO ANY',
+    })
+    parse_response = client.post('/api/rules/parse', json={
+        'dsl_text': 'BLOCK OUT UDP FROM ANY TO ANY',
+    })
+
+    assert_json_error(create_response)
+    assert_json_error(parse_response)
