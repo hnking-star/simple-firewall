@@ -63,15 +63,16 @@ def _dsl_text(data):
 
 
 def _maybe_apply_updates(database_path):
-    """Apply pending updates when settings request automatic dry-run apply."""
+    """Apply pending updates according to update mode and iptables setting."""
     settings = get_settings(database_path)
     mode = settings.get('update_mode', 'immediate')
+    dry_run = settings.get('iptables_enabled') != 'true'
     if mode == 'immediate':
-        return RuleUpdateService(database_path).apply_enabled_rules(dry_run=True)
+        return RuleUpdateService(database_path).apply_enabled_rules(dry_run=dry_run)
     if mode == 'counted':
         batch_size = int(settings.get('update_batch_size', '3'))
         if len(list_pending_rule_updates(database_path)) >= batch_size:
-            return RuleUpdateService(database_path).apply_enabled_rules(dry_run=True)
+            return RuleUpdateService(database_path).apply_enabled_rules(dry_run=dry_run)
     return None
 
 
