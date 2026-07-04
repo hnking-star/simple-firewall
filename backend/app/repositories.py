@@ -226,13 +226,20 @@ def update_settings(database_path, values):
         conn.close()
 
 
-def list_logs(database_path):
+def list_logs(database_path, limit=None, exclude_ssh=False):
     """Return traffic log rows ordered newest first."""
     conn = connect_db(database_path)
     try:
-        rows = conn.execute(
-            'SELECT * FROM traffic_logs ORDER BY timestamp DESC, id DESC'
-        ).fetchall()
+        query = 'SELECT * FROM traffic_logs'
+        params = []
+        if exclude_ssh:
+            query += ' WHERE src_port != ? AND dst_port != ?'
+            params.extend(['22', '22'])
+        query += ' ORDER BY timestamp DESC, id DESC'
+        if limit is not None:
+            query += ' LIMIT ?'
+            params.append(int(limit))
+        rows = conn.execute(query, params).fetchall()
         return [row_to_plain_dict(row) for row in rows]
     finally:
         conn.close()

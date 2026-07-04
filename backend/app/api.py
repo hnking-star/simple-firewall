@@ -251,5 +251,5 @@ def rules_apply():
 
 @api.get('/traffic/recent')
 def traffic_recent():
-    """Return recent traffic log items."""
-    return jsonify({'items': list_logs(_database_path())})
+    """Return recent non-SSH traffic log items for monitor display."""
+    return jsonify({'items': list_logs(_database_path(), limit=50, exclude_ssh=True)})
