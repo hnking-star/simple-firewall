@@ -1,4 +1,9 @@
+import threading
+
 from scapy.layers.inet import ICMP, IP, TCP, UDP
+from scapy.sendrecv import sniff
+
+from .repositories import insert_traffic_log, match_packet_rule
 
 
 def packet_to_record(packet, direction):
@@ -34,18 +39,59 @@ def packet_to_record(packet, direction):
 
 
 class SnifferService:
-    """Track sniffer running state without capturing packets."""
+    """Manage a background Scapy packet sniffer."""
 
     def __init__(self):
         """Initialize the service as stopped."""
         self.running = False
+        self._stop_event = threading.Event()
+        self._thread = None
 
-    def start(self):
-        """Mark the sniffer as running."""
+    def start(self, database_path=None, interface='any'):
+        """Start sniffing packets in a background thread."""
+        if self.running:
+            return {'running': True}
         self.running = True
-        return {'running': self.running}
+        self._stop_event.clear()
+        if database_path is None:
+            return {'running': True}
+        self._thread = threading.Thread(
+            target=self._sniff,
+            args=(database_path, interface),
+            daemon=True,
+        )
+        self._thread.start()
+        return {'running': True}
 
     def stop(self):
-        """Mark the sniffer as stopped."""
+        """Signal the sniffer thread to stop."""
+        self._stop_event.set()
         self.running = False
-        return {'running': self.running}
+        return {'running': False}
+
+    def handle_packet(self, packet, database_path, direction='OUT'):
+        """Convert one packet to a traffic log row and persist it."""
+        record = packet_to_record(packet, direction)
+        if record is None:
+            return None
+        matched_rule = match_packet_rule(database_path, record)
+        if matched_rule:
+            record['action'] = 'DENY'
+            record['rule_id'] = matched_rule['id']
+            record['reason'] = f"matched rule {matched_rule['id']}"
+        else:
+            record['action'] = 'ALLOW'
+            record['rule_id'] = None
+            record['reason'] = 'default allow'
+        return insert_traffic_log(database_path, record)
+
+    def _sniff(self, database_path, interface):
+        try:
+            sniff(
+                iface=interface,
+                store=False,
+                prn=lambda packet: self.handle_packet(packet, database_path),
+                stop_filter=lambda _packet: self._stop_event.is_set(),
+            )
+        finally:
+            self.running = False

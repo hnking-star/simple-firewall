@@ -1,6 +1,10 @@
 from .iptables_adapter import IptablesAdapter
 from .models import FirewallRule
-from .repositories import list_enabled_rules
+from .repositories import (
+    list_enabled_rules,
+    list_pending_rule_updates,
+    mark_rule_updates,
+)
 
 
 def dict_to_rule(row):
@@ -24,9 +28,28 @@ class RuleUpdateService:
         self.database_path = database_path
 
     def apply_enabled_rules(self, dry_run=True):
-        """Apply enabled rules and return adapter results."""
+        """Apply enabled rules and mark pending updates as applied or failed."""
+        pending = list_pending_rule_updates(self.database_path)
         results = []
         for row in list_enabled_rules(self.database_path):
             command = IptablesAdapter.build_rule_command(dict_to_rule(row))
             results.append(IptablesAdapter.run(command, dry_run=dry_run))
-        return {'applied_count': len(results), 'results': results}
+
+        failed = any(result['returncode'] != 0 for result in results)
+        status = 'FAILED' if failed else 'APPLIED'
+        message = 'dry-run apply' if dry_run else 'iptables apply'
+        if failed:
+            message = f'{message} failed'
+        mark_rule_updates(
+            self.database_path,
+            [row['id'] for row in pending],
+            status,
+            message,
+        )
+        return {
+            'applied_count': len(results),
+            'pending_update_count': len(pending),
+            'status': status,
+            'message': message,
+            'results': results,
+        }

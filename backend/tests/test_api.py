@@ -204,7 +204,8 @@ def test_apply_enabled_rules_returns_dry_run_commands(client):
     ]
 
 
-def test_sniffer_start_and_stop(client):
+def test_sniffer_start_and_stop(client, monkeypatch):
+    monkeypatch.setattr('app.sniffer_service.sniff', lambda **kwargs: None)
     start_response = client.post('/api/sniffer/start')
     stop_response = client.post('/api/sniffer/stop')
 
@@ -255,4 +256,111 @@ def test_apply_rules_defaults_to_dry_run_without_body(client, monkeypatch):
 
     assert no_body_response.status_code == 200
     assert empty_body_response.status_code == 200
+    run.assert_not_called()
+
+
+def test_update_and_delete_rule_api(client):
+    created = client.post('/api/rules', json={
+        'name': 'block dns',
+        'dsl_text': 'DENY OUT UDP FROM ANY TO 8.8.8.8 SPORT ANY DPORT 53',
+        'enabled': True,
+        'priority': 10,
+    }).get_json()
+
+    update_response = client.put(f"/api/rules/{created['id']}", json={
+        'name': 'allow ssh',
+        'dsl_text': 'ALLOW IN TCP FROM ANY TO ANY SPORT ANY DPORT 22',
+        'enabled': False,
+        'priority': 5,
+    })
+
+    assert update_response.status_code == 200
+    updated = update_response.get_json()
+    assert updated['name'] == 'allow ssh'
+    assert updated['action'] == 'ALLOW'
+    assert updated['direction'] == 'IN'
+    assert updated['protocol'] == 'TCP'
+    assert updated['dst_port'] == '22'
+    assert updated['enabled'] is False
+    assert updated['priority'] == 5
+
+    delete_response = client.delete(f"/api/rules/{created['id']}")
+
+    assert delete_response.status_code == 200
+    deleted = delete_response.get_json()
+    assert deleted['deleted'] is True
+    assert deleted['id'] == created['id']
+    assert client.get('/api/rules').get_json() == {'items': []}
+
+
+def test_rule_updates_are_created_and_marked_applied(client, db_connection):
+    client.put('/api/settings', json={'update_mode': 'timed'})
+    create_response = client.post('/api/rules', json={
+        'name': 'block dns',
+        'dsl_text': 'DENY OUT UDP FROM ANY TO 8.8.8.8 SPORT ANY DPORT 53',
+    })
+    rule_id = create_response.get_json()['id']
+    client.put(f'/api/rules/{rule_id}', json={
+        'name': 'block web',
+        'dsl_text': 'DENY OUT TCP FROM ANY TO 1.1.1.1 SPORT ANY DPORT 443',
+    })
+    client.delete(f'/api/rules/{rule_id}')
+
+    pending = db_connection.execute(
+        "SELECT operation, status FROM rule_updates ORDER BY id"
+    ).fetchall()
+    assert [(row['operation'], row['status']) for row in pending] == [
+        ('CREATE', 'PENDING'), ('UPDATE', 'PENDING'), ('DELETE', 'PENDING')
+    ]
+
+    apply_response = client.post('/api/rules/apply', json={'dry_run': True})
+
+    assert apply_response.status_code == 200
+    applied = db_connection.execute(
+        "SELECT status, message, applied_at FROM rule_updates ORDER BY id"
+    ).fetchall()
+    assert [row['status'] for row in applied] == ['APPLIED', 'APPLIED', 'APPLIED']
+    assert all('dry-run' in row['message'] for row in applied)
+    assert all(row['applied_at'] for row in applied)
+
+
+def test_counted_mode_applies_when_pending_reaches_threshold(client, db_connection):
+    client.put('/api/settings', json={
+        'update_mode': 'counted',
+        'update_batch_size': '2',
+    })
+
+    first = client.post('/api/rules', json={
+        'name': 'rule one',
+        'dsl_text': 'ALLOW IN TCP FROM ANY TO ANY SPORT ANY DPORT 22',
+    })
+    second = client.post('/api/rules', json={
+        'name': 'rule two',
+        'dsl_text': 'DENY OUT UDP FROM ANY TO 8.8.8.8 SPORT ANY DPORT 53',
+    })
+
+    assert first.status_code == 201
+    assert 'apply_result' not in first.get_json()
+    assert second.status_code == 201
+    assert second.get_json()['apply_result']['applied_count'] == 2
+    rows = db_connection.execute('SELECT status FROM rule_updates ORDER BY id').fetchall()
+    assert [row['status'] for row in rows] == ['APPLIED', 'APPLIED']
+
+
+def test_real_apply_requires_enabled_setting_and_confirmation(client, monkeypatch):
+    run = Mock()
+    monkeypatch.setattr('app.iptables_adapter.subprocess.run', run)
+    client.post('/api/rules', json={
+        'name': 'allow ssh',
+        'dsl_text': 'ALLOW IN TCP FROM ANY TO ANY SPORT ANY DPORT 22',
+    })
+
+    missing_confirm = client.post('/api/rules/apply', json={'dry_run': False})
+    disabled = client.post('/api/rules/apply', json={
+        'dry_run': False,
+        'confirm_apply': 'APPLY_IPTABLES',
+    })
+
+    assert missing_confirm.status_code == 400
+    assert disabled.status_code == 400
     run.assert_not_called()
