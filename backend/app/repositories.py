@@ -252,9 +252,9 @@ def insert_traffic_log(database_path, record):
         cursor = conn.execute(
             """
             INSERT INTO traffic_logs (
-                src_ip, dst_ip, src_port, dst_port, protocol, direction,
-                action, rule_id, packet_len, reason
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                timestamp, src_ip, dst_ip, src_port, dst_port, protocol,
+                direction, action, rule_id, packet_len, reason
+            ) VALUES (datetime('now', 'localtime'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 record.get('src_ip'),
