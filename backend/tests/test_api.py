@@ -147,3 +147,72 @@ def test_rule_endpoints_reject_invalid_dsl(client):
 
     assert_json_error(create_response)
     assert_json_error(parse_response)
+
+
+def test_stats_returns_expected_keys(client):
+    response = client.get('/api/stats')
+
+    assert response.status_code == 200
+    assert set(response.get_json()) == {
+        'blocked_count', 'allowed_count', 'active_connections', 'enabled_rules'
+    }
+
+
+def test_settings_can_be_read_and_updated(client):
+    get_response = client.get('/api/settings')
+    assert get_response.status_code == 200
+    assert get_response.get_json()['interface'] == 'any'
+
+    put_response = client.put('/api/settings', json={
+        'interface': 'eth0',
+        'update_batch_size': '5',
+        'missing': 'ignored',
+    })
+
+    assert put_response.status_code == 200
+    settings = put_response.get_json()
+    assert settings['interface'] == 'eth0'
+    assert settings['update_batch_size'] == '5'
+    assert 'missing' not in settings
+
+
+def test_logs_returns_empty_items_initially(client):
+    response = client.get('/api/logs')
+
+    assert response.status_code == 200
+    assert response.get_json() == {'items': []}
+
+
+def test_apply_enabled_rules_returns_dry_run_commands(client):
+    client.post('/api/rules', json={
+        'name': 'block dns',
+        'dsl_text': 'DENY OUT UDP FROM ANY TO 8.8.8.8 SPORT ANY DPORT 53',
+        'enabled': True,
+    })
+
+    response = client.post('/api/rules/apply', json={'dry_run': True})
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body['applied_count'] == 1
+    assert body['results'][0]['command'] == [
+        'iptables', '-A', 'OUTPUT', '-p', 'udp', '-d', '8.8.8.8',
+        '--dport', '53', '-j', 'DROP'
+    ]
+
+
+def test_sniffer_start_and_stop(client):
+    start_response = client.post('/api/sniffer/start')
+    stop_response = client.post('/api/sniffer/stop')
+
+    assert start_response.status_code == 200
+    assert start_response.get_json() == {'running': True}
+    assert stop_response.status_code == 200
+    assert stop_response.get_json() == {'running': False}
+
+
+def test_recent_traffic_returns_log_items(client):
+    response = client.get('/api/traffic/recent')
+
+    assert response.status_code == 200
+    assert response.get_json() == {'items': []}

@@ -1,9 +1,19 @@
 from flask import Blueprint, current_app, jsonify, request
 
-from .repositories import create_rule, list_rules
+from .repositories import (
+    create_rule,
+    get_settings,
+    get_stats,
+    list_logs,
+    list_rules,
+    update_settings,
+)
 from .rule_parser import RuleParser, RuleParserError
+from .sniffer_service import SnifferService
+from .update_service import RuleUpdateService
 
 api = Blueprint('api', __name__, url_prefix='/api')
+sniffer_service = SnifferService()
 
 
 def _database_path():
@@ -87,3 +97,55 @@ def rules_parse():
     except RuleParserError as exc:
         return _bad_request(str(exc))
     return jsonify(_rule_to_dict(rule))
+
+
+@api.get('/stats')
+def stats_show():
+    """Return firewall runtime statistics."""
+    return jsonify(get_stats(_database_path()))
+
+
+@api.get('/logs')
+def logs_index():
+    """Return traffic logs."""
+    return jsonify({'items': list_logs(_database_path())})
+
+
+@api.get('/settings')
+def settings_show():
+    """Return persisted application settings."""
+    return jsonify(get_settings(_database_path()))
+
+
+@api.put('/settings')
+def settings_update():
+    """Update existing application settings."""
+    data = request.get_json(silent=True) or {}
+    return jsonify(update_settings(_database_path(), data))
+
+
+@api.post('/sniffer/start')
+def sniffer_start():
+    """Start the packet sniffer service."""
+    return jsonify(sniffer_service.start())
+
+
+@api.post('/sniffer/stop')
+def sniffer_stop():
+    """Stop the packet sniffer service."""
+    return jsonify(sniffer_service.stop())
+
+
+@api.post('/rules/apply')
+def rules_apply():
+    """Apply enabled rules through the update service."""
+    data = request.get_json(silent=True) or {}
+    dry_run = data.get('dry_run', True)
+    result = RuleUpdateService(_database_path()).apply_enabled_rules(dry_run=dry_run)
+    return jsonify(result)
+
+
+@api.get('/traffic/recent')
+def traffic_recent():
+    """Return recent traffic log items."""
+    return jsonify({'items': list_logs(_database_path())})
