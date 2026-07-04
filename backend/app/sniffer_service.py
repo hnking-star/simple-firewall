@@ -88,10 +88,12 @@ class SnifferService:
         return insert_traffic_log(database_path, record)
 
     def _sniff(self, database_path, interface):
+        """Capture packets until stopped and persist parsed IP records."""
+        iface = None if interface in (None, '', 'any') else interface
         try:
             while not self._stop_event.is_set():
                 sniff(
-                    iface=interface,
+                    iface=iface,
                     store=False,
                     timeout=1,
                     prn=lambda packet: self.handle_packet(packet, database_path),

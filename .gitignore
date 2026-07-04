@@ -1,3 +1,7 @@
 .worktrees/
 .superpowers/
 .DS_Store
+.superpowers
+*.pyc
+.venv/
+*.db
