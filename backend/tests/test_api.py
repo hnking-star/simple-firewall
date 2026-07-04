@@ -79,3 +79,31 @@ def test_create_app_initializes_database(db_path):
         ]
     finally:
         conn.close()
+
+
+def test_create_and_list_rule(client):
+    payload = {
+        'name': 'block dns',
+        'dsl_text': 'DENY OUT UDP FROM ANY TO 8.8.8.8 SPORT ANY DPORT 53',
+        'enabled': True,
+        'priority': 10,
+    }
+    create_response = client.post('/api/rules', json=payload)
+    assert create_response.status_code == 201
+    created = create_response.get_json()
+    assert created['name'] == 'block dns'
+    assert created['action'] == 'DENY'
+
+    list_response = client.get('/api/rules')
+    assert list_response.status_code == 200
+    rules = list_response.get_json()['items']
+    assert len(rules) == 1
+    assert rules[0]['dst_ip'] == '8.8.8.8'
+
+
+def test_parse_rule_endpoint(client):
+    response = client.post('/api/rules/parse', json={
+        'dsl_text': 'ALLOW IN TCP FROM ANY TO ANY SPORT ANY DPORT 22'
+    })
+    assert response.status_code == 200
+    assert response.get_json()['dst_port'] == '22'
