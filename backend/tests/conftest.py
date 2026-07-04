@@ -18,10 +18,7 @@ def db_path(tmp_path):
 
 @pytest.fixture()
 def app(db_path):
-    flask_app = create_app({'DATABASE_PATH': str(db_path), 'TESTING': True})
-    with flask_app.app_context():
-        init_db(str(db_path))
-    return flask_app
+    return create_app({'DATABASE_PATH': str(db_path), 'TESTING': True})
 
 
 @pytest.fixture()

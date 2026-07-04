@@ -17,7 +17,8 @@ def connect_db(database_path):
 
 def init_db(database_path):
     """Create the firewall schema and seed default settings."""
-    with connect_db(database_path) as conn:
+    conn = connect_db(database_path)
+    try:
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS rules (
@@ -94,3 +95,6 @@ def init_db(database_path):
                 ('update_batch_size', str(DEFAULT_UPDATE_BATCH_SIZE), 'Rule update batch size'),
             ],
         )
+        conn.commit()
+    finally:
+        conn.close()
