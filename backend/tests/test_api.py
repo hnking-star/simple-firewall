@@ -197,9 +197,9 @@ def test_apply_enabled_rules_returns_dry_run_commands(client):
 
     assert response.status_code == 200
     body = response.get_json()
-    assert body['applied_count'] == 1
-    assert body['results'][0]['command'] == [
-        'iptables', '-A', 'OUTPUT', '-p', 'udp', '-d', '8.8.8.8',
+    assert body['applied_count'] == 7
+    assert body['results'][-1]['command'] == [
+        'iptables', '-A', 'SIMPLE_FW_OUT', '-p', 'udp', '-d', '8.8.8.8',
         '--dport', '53', '-j', 'DROP'
     ]
 
@@ -348,7 +348,7 @@ def test_counted_mode_applies_when_pending_reaches_threshold(client, db_connecti
     assert first.status_code == 201
     assert 'apply_result' not in first.get_json()
     assert second.status_code == 201
-    assert second.get_json()['apply_result']['applied_count'] == 2
+    assert second.get_json()['apply_result']['applied_count'] == 8
     rows = db_connection.execute('SELECT status FROM rule_updates ORDER BY id').fetchall()
     assert [row['status'] for row in rows] == ['APPLIED', 'APPLIED']
 
@@ -380,3 +380,19 @@ def test_boolean_settings_are_normalized_for_real_apply_gate(client):
     response = client.put('/api/settings', json={'iptables_enabled': False})
     assert response.status_code == 200
     assert response.get_json()['iptables_enabled'] == 'false'
+
+
+def test_clear_rules_requires_confirmation_for_real_apply(client):
+    response = client.post('/api/rules/clear', json={'dry_run': False})
+
+    assert response.status_code == 400
+    assert 'real iptables clear requires' in response.get_json()['error']
+
+
+def test_clear_rules_supports_dry_run(client):
+    response = client.post('/api/rules/clear', json={'dry_run': True})
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body['status'] == 'APPLIED'
+    assert body['applied_count'] == 4

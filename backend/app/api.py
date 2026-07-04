@@ -256,6 +256,27 @@ def rules_apply():
     return jsonify(result)
 
 
+
+
+@api.post('/rules/clear')
+def rules_clear():
+    """Clear rules created by this firewall system from iptables."""
+    data, error = _json_object()
+    if error:
+        return error
+    dry_run = data.get('dry_run', True)
+    database_path = _database_path()
+    if dry_run is False:
+        settings = get_settings(database_path)
+        if (
+            settings.get('iptables_enabled') != 'true'
+            or data.get('confirm_apply') != 'APPLY_IPTABLES'
+        ):
+            return _bad_request('real iptables clear requires iptables_enabled=true and confirm_apply=APPLY_IPTABLES')
+    result = RuleUpdateService(database_path).clear_rules(dry_run=dry_run)
+    return jsonify(result)
+
+
 @api.get('/traffic/recent')
 def traffic_recent():
     """Return paginated recent non-SSH traffic log items for monitor display."""
