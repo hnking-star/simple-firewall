@@ -174,3 +174,23 @@ pre {
   background: #f9fafb;
   border-radius: 8px;
 }
+
+.row-actions,
+.section-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.section-header {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-header h3 {
+  margin: 0;
+}
+
+button.danger {
+  background: #dc2626;
+}
