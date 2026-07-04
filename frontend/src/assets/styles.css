@@ -1,0 +1,176 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: #1f2937;
+  background: #f3f4f6;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  padding: 8px 14px;
+  color: #fff;
+  background: #2563eb;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #6b7280;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  padding: 24px 18px;
+  color: #e5e7eb;
+  background: #111827;
+}
+
+.sidebar h1 {
+  margin: 0 0 24px;
+  font-size: 20px;
+}
+
+.sidebar nav {
+  display: grid;
+  gap: 8px;
+}
+
+.sidebar a {
+  padding: 10px 12px;
+  color: #d1d5db;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.sidebar a.router-link-active {
+  color: #fff;
+  background: #2563eb;
+}
+
+.content {
+  flex: 1;
+  padding: 28px;
+}
+
+.page-title {
+  margin: 0 0 18px;
+  font-size: 24px;
+}
+
+.card {
+  padding: 18px;
+  margin-bottom: 18px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.stat-value {
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.message {
+  color: #047857;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.chart {
+  height: 280px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+th,
+td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+th {
+  color: #374151;
+  background: #f9fafb;
+}
+
+pre {
+  padding: 12px;
+  overflow: auto;
+  background: #f9fafb;
+  border-radius: 8px;
+}
