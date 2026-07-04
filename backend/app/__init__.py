@@ -3,6 +3,7 @@ from flask_cors import CORS
 
 from .api import api
 from .config import DEFAULT_DATABASE_PATH
+from .db import init_db
 
 
 def create_app(config=None):
@@ -12,6 +13,7 @@ def create_app(config=None):
     if config:
         app.config.update(config)
 
+    init_db(app.config['DATABASE_PATH'])
     CORS(app)
     app.register_blueprint(api)
     return app
