@@ -22,11 +22,8 @@
       </div>
       <div class="actions">
         <button @click="parseRule">解析</button>
-        <button @click="saveRule">{{ editingId ? '更新' : '保存' }}</button>
+        <button @click="saveRule">{{ editingId ? '更新并应用' : '保存并应用' }}</button>
         <button v-if="editingId" class="secondary" @click="resetForm">取消编辑</button>
-        <button class="secondary" @click="applyRules">应用规则（dry-run）</button>
-        <button class="danger" @click="applyRulesReal">真实应用规则</button>
-        <button class="secondary" @click="clearSystemRules">清除本系统规则</button>
         <span v-if="message" class="message">{{ message }}</span>
         <span v-if="error" class="error">{{ error }}</span>
       </div>
@@ -135,14 +132,14 @@ async function saveRule() {
   try {
     if (editingId.value) {
       await api.put(`/rules/${editingId.value}`, rulePayload())
-      message.value = '更新成功'
     } else {
       await api.post('/rules', rulePayload())
-      message.value = '保存成功'
     }
+    await applyRulesReal(false)
+    message.value = editingId.value ? '更新并应用成功' : '保存并应用成功'
     await loadRules()
   } catch (err) {
-    error.value = errorMessage(err, '保存失败')
+    error.value = errorMessage(err, '保存并应用失败')
   }
 }
 
@@ -160,7 +157,8 @@ async function deleteRule(rule) {
     if (editingId.value === rule.id) {
       resetForm()
     }
-    message.value = '删除成功'
+    await applyRulesReal(false)
+    message.value = '删除并应用成功'
     await loadRules()
   } catch (err) {
     error.value = errorMessage(err, '删除失败')
@@ -174,53 +172,23 @@ async function toggleRule(rule) {
       ...rulePayload(rule),
       enabled: !rule.enabled,
     })
-    message.value = rule.enabled ? '已禁用' : '已启用'
+    await applyRulesReal(false)
+    message.value = rule.enabled ? '已禁用并应用' : '已启用并应用'
     await loadRules()
   } catch (err) {
     error.value = errorMessage(err, '操作失败')
   }
 }
 
-async function applyRules() {
-  clearNotice()
-  try {
-    const { data } = await api.post('/rules/apply', { dry_run: true })
-    message.value = `dry-run 完成，生成命令 ${data.applied_count || 0} 条`
-  } catch (err) {
-    error.value = errorMessage(err, '应用规则失败')
+async function applyRulesReal(askConfirm = true) {
+  if (askConfirm && !window.confirm('确认真实写入 Linux iptables 吗？请勿添加拦截 SSH 22 的规则。')) {
+    return false
   }
-}
-
-async function applyRulesReal() {
-  clearNotice()
-  if (!window.confirm('确认真实写入 Linux iptables 吗？请勿添加拦截 SSH 22 的规则。')) {
-    return
-  }
-  try {
-    const { data } = await api.post('/rules/apply', {
-      dry_run: false,
-      confirm_apply: 'APPLY_IPTABLES',
-    })
-    message.value = `真实应用完成，执行命令 ${data.applied_count || 0} 条`
-  } catch (err) {
-    error.value = errorMessage(err, '真实应用失败')
-  }
-}
-
-async function clearSystemRules() {
-  clearNotice()
-  if (!window.confirm('确认清除本系统写入的 iptables 规则吗？')) {
-    return
-  }
-  try {
-    const { data } = await api.post('/rules/clear', {
-      dry_run: false,
-      confirm_apply: 'APPLY_IPTABLES',
-    })
-    message.value = `清除完成，执行命令 ${data.applied_count || 0} 条`
-  } catch (err) {
-    error.value = errorMessage(err, '清除失败')
-  }
+  const { data } = await api.post('/rules/apply', {
+    dry_run: false,
+    confirm_apply: 'APPLY_IPTABLES',
+  })
+  return data
 }
 
 onMounted(loadRules)
