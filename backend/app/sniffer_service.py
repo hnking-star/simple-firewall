@@ -71,6 +71,12 @@ class SnifferService:
         self.running = False
         return {'running': False}
 
+    def status(self):
+        """Return whether the background sniffer thread is active."""
+        alive = bool(self._thread and self._thread.is_alive())
+        self.running = self.running and alive
+        return {'running': self.running}
+
     def handle_packet(self, packet, database_path, direction='OUT'):
         """Convert one packet to a traffic log row and persist it."""
         record = packet_to_record(packet, direction)

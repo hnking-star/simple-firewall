@@ -74,6 +74,15 @@ async function loadTraffic() {
   }
 }
 
+async function loadSnifferStatus() {
+  try {
+    const { data } = await api.get('/sniffer/status')
+    running.value = Boolean(data.running)
+  } catch (err) {
+    error.value = errorMessage(err, '抓包状态加载失败')
+  }
+}
+
 async function setSniffer(path, successText) {
   loading.value = true
   message.value = ''
@@ -99,6 +108,7 @@ function stopSniffer() {
 
 onMounted(() => {
   loadSettings()
+  loadSnifferStatus()
   loadTraffic()
 })
 </script>

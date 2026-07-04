@@ -230,6 +230,12 @@ def sniffer_stop():
     return jsonify(sniffer_service.stop())
 
 
+@api.get('/sniffer/status')
+def sniffer_status():
+    """Return the current packet sniffer runtime status."""
+    return jsonify(sniffer_service.status())
+
+
 @api.post('/rules/apply')
 def rules_apply():
     """Apply enabled rules through the update service."""
