@@ -1,4 +1,5 @@
 import sqlite3
+from unittest.mock import Mock
 
 from app import create_app
 
@@ -216,3 +217,37 @@ def test_recent_traffic_returns_log_items(client):
 
     assert response.status_code == 200
     assert response.get_json() == {'items': []}
+
+
+def test_object_body_endpoints_reject_json_arrays(client):
+    endpoints = [
+        ('post', '/api/rules'),
+        ('post', '/api/rules/parse'),
+        ('put', '/api/settings'),
+        ('post', '/api/rules/apply'),
+    ]
+
+    for method, path in endpoints:
+        response = getattr(client, method)(path, json=[])
+
+        assert response.status_code == 400
+        assert response.get_json() == {
+            'error': 'request body must be a JSON object'
+        }
+
+
+def test_apply_rules_defaults_to_dry_run_without_body(client, monkeypatch):
+    run = Mock()
+    monkeypatch.setattr('app.iptables_adapter.subprocess.run', run)
+    client.post('/api/rules', json={
+        'name': 'block dns',
+        'dsl_text': 'DENY OUT UDP FROM ANY TO 8.8.8.8 SPORT ANY DPORT 53',
+        'enabled': True,
+    })
+
+    no_body_response = client.post('/api/rules/apply')
+    empty_body_response = client.post('/api/rules/apply', json={})
+
+    assert no_body_response.status_code == 200
+    assert empty_body_response.status_code == 200
+    run.assert_not_called()

@@ -39,6 +39,16 @@ def _bad_request(message):
     return jsonify({'error': message}), 400
 
 
+def _json_object():
+    """Return request JSON as an object, or an error response."""
+    data = request.get_json(silent=True)
+    if data is None:
+        return {}, None
+    if not isinstance(data, dict):
+        return None, _bad_request('request body must be a JSON object')
+    return data, None
+
+
 def _dsl_text(data):
     """Return valid DSL text or None when invalid."""
     value = data.get('dsl_text')
@@ -62,7 +72,9 @@ def rules_index():
 @api.post('/rules')
 def rules_create():
     """Create a firewall rule from DSL text."""
-    data = request.get_json(silent=True) or {}
+    data, error = _json_object()
+    if error:
+        return error
     dsl_text = _dsl_text(data)
     if dsl_text is None:
         return _bad_request('dsl_text must be a non-empty string')
@@ -88,7 +100,9 @@ def rules_create():
 @api.post('/rules/parse')
 def rules_parse():
     """Parse firewall rule DSL without storing it."""
-    data = request.get_json(silent=True) or {}
+    data, error = _json_object()
+    if error:
+        return error
     dsl_text = _dsl_text(data)
     if dsl_text is None:
         return _bad_request('dsl_text must be a non-empty string')
@@ -120,7 +134,9 @@ def settings_show():
 @api.put('/settings')
 def settings_update():
     """Update existing application settings."""
-    data = request.get_json(silent=True) or {}
+    data, error = _json_object()
+    if error:
+        return error
     return jsonify(update_settings(_database_path(), data))
 
 
@@ -139,7 +155,9 @@ def sniffer_stop():
 @api.post('/rules/apply')
 def rules_apply():
     """Apply enabled rules through the update service."""
-    data = request.get_json(silent=True) or {}
+    data, error = _json_object()
+    if error:
+        return error
     dry_run = data.get('dry_run', True)
     result = RuleUpdateService(_database_path()).apply_enabled_rules(dry_run=dry_run)
     return jsonify(result)
