@@ -27,7 +27,7 @@ class IptablesAdapter:
         return command
 
     @staticmethod
-    def run(command, dry_run=False):
+    def run(command, dry_run=True):
         """Run a command or return a dry-run result without executing it."""
         if dry_run:
             return {'command': command, 'returncode': 0, 'stdout': '', 'stderr': ''}
