@@ -10,8 +10,9 @@
         <label>
           更新模式
           <select v-model="form.update_mode">
-            <option value="immediate">immediate</option>
-            <option value="batch">batch</option>
+            <option value="immediate">立即更新</option>
+            <option value="timed">定时更新</option>
+            <option value="counted">按数量更新</option>
           </select>
         </label>
         <label>
@@ -21,6 +22,20 @@
         <label>
           批量大小
           <input v-model="form.update_batch_size" type="number" min="1" />
+        </label>
+        <label>
+          启用 iptables
+          <select v-model="form.iptables_enabled">
+            <option value="true">是</option>
+            <option value="false">否</option>
+          </select>
+        </label>
+        <label>
+          启用抓包
+          <select v-model="form.sniffer_enabled">
+            <option value="true">是</option>
+            <option value="false">否</option>
+          </select>
         </label>
       </div>
       <div class="actions">
@@ -38,19 +53,27 @@ import api, { errorMessage } from '../api/client'
 
 const form = ref({
   interface: '',
-  update_mode: '',
+  update_mode: 'immediate',
   update_interval: '',
   update_batch_size: '',
+  iptables_enabled: 'false',
+  sniffer_enabled: 'false',
 })
 const message = ref('')
 const error = ref('')
 
+function boolSetting(value) {
+  return value === true || value === 'true' || value === '1' ? 'true' : 'false'
+}
+
 function pickSettings(data) {
   form.value = {
     interface: data.interface || '',
-    update_mode: data.update_mode || '',
+    update_mode: data.update_mode || 'immediate',
     update_interval: data.update_interval || '',
     update_batch_size: data.update_batch_size || '',
+    iptables_enabled: boolSetting(data.iptables_enabled),
+    sniffer_enabled: boolSetting(data.sniffer_enabled),
   }
 }
 

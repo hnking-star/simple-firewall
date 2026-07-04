@@ -195,6 +195,13 @@ def get_settings(database_path):
         conn.close()
 
 
+def _setting_value(value):
+    """Normalize setting values before storing them."""
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    return str(value)
+
+
 def update_settings(database_path, values):
     """Update existing setting keys and return all settings."""
     conn = connect_db(database_path)
@@ -210,7 +217,7 @@ def update_settings(database_path, values):
                     SET value = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE key = ?
                     """,
-                    (str(value), key),
+                    (_setting_value(value), key),
                 )
         conn.commit()
         rows = conn.execute('SELECT key, value FROM settings').fetchall()

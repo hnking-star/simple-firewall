@@ -364,3 +364,13 @@ def test_real_apply_requires_enabled_setting_and_confirmation(client, monkeypatc
     assert missing_confirm.status_code == 400
     assert disabled.status_code == 400
     run.assert_not_called()
+
+
+def test_boolean_settings_are_normalized_for_real_apply_gate(client):
+    response = client.put('/api/settings', json={'iptables_enabled': True})
+    assert response.status_code == 200
+    assert response.get_json()['iptables_enabled'] == 'true'
+
+    response = client.put('/api/settings', json={'iptables_enabled': False})
+    assert response.status_code == 200
+    assert response.get_json()['iptables_enabled'] == 'false'

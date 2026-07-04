@@ -66,6 +66,8 @@ class SnifferService:
     def stop(self):
         """Signal the sniffer thread to stop."""
         self._stop_event.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=1)
         self.running = False
         return {'running': False}
 
@@ -87,11 +89,12 @@ class SnifferService:
 
     def _sniff(self, database_path, interface):
         try:
-            sniff(
-                iface=interface,
-                store=False,
-                prn=lambda packet: self.handle_packet(packet, database_path),
-                stop_filter=lambda _packet: self._stop_event.is_set(),
-            )
+            while not self._stop_event.is_set():
+                sniff(
+                    iface=interface,
+                    store=False,
+                    timeout=1,
+                    prn=lambda packet: self.handle_packet(packet, database_path),
+                )
         finally:
             self.running = False
