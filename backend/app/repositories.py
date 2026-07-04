@@ -226,7 +226,7 @@ def update_settings(database_path, values):
         conn.close()
 
 
-def list_logs(database_path, limit=None, exclude_ssh=False):
+def list_logs(database_path, limit=None, offset=0, exclude_ssh=False):
     """Return traffic log rows ordered newest first."""
     conn = connect_db(database_path)
     try:
@@ -237,10 +237,24 @@ def list_logs(database_path, limit=None, exclude_ssh=False):
             params.extend(['22', '22'])
         query += ' ORDER BY timestamp DESC, id DESC'
         if limit is not None:
-            query += ' LIMIT ?'
-            params.append(int(limit))
+            query += ' LIMIT ? OFFSET ?'
+            params.extend([int(limit), int(offset)])
         rows = conn.execute(query, params).fetchall()
         return [row_to_plain_dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def count_logs(database_path, exclude_ssh=False):
+    """Return the number of traffic log rows matching monitor filters."""
+    conn = connect_db(database_path)
+    try:
+        query = 'SELECT COUNT(*) AS count FROM traffic_logs'
+        params = []
+        if exclude_ssh:
+            query += ' WHERE src_port != ? AND dst_port != ?'
+            params.extend(['22', '22'])
+        return conn.execute(query, params).fetchone()['count']
     finally:
         conn.close()
 

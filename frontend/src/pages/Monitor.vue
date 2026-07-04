@@ -17,6 +17,20 @@
         <h3>最近数据包</h3>
         <button class="secondary" @click="loadTraffic">刷新</button>
       </div>
+      <div class="pagination-bar">
+        <span>共 {{ total }} 条，第 {{ page }} / {{ totalPages }} 页</span>
+        <label>
+          每页
+          <select v-model.number="pageSize" @change="changePageSize">
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+          </select>
+        </label>
+        <button class="secondary" :disabled="page <= 1" @click="goPage(page - 1)">上一页</button>
+        <button class="secondary" :disabled="page >= totalPages" @click="goPage(page + 1)">下一页</button>
+      </div>
       <table>
         <thead>
           <tr>
@@ -53,6 +67,10 @@ const running = ref(false)
 const loading = ref(false)
 const networkInterface = ref('')
 const traffic = ref([])
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+const totalPages = ref(1)
 const message = ref('')
 const error = ref('')
 
@@ -67,11 +85,26 @@ async function loadSettings() {
 
 async function loadTraffic() {
   try {
-    const { data } = await api.get('/traffic/recent')
+    const { data } = await api.get('/traffic/recent', {
+      params: { page: page.value, page_size: pageSize.value },
+    })
     traffic.value = data.items || []
+    total.value = data.total || 0
+    totalPages.value = data.total_pages || 1
+    page.value = data.page || page.value
   } catch (err) {
     error.value = errorMessage(err, '最近数据包加载失败')
   }
+}
+
+function goPage(nextPage) {
+  page.value = nextPage
+  loadTraffic()
+}
+
+function changePageSize() {
+  page.value = 1
+  loadTraffic()
 }
 
 async function loadSnifferStatus() {

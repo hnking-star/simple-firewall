@@ -219,7 +219,13 @@ def test_recent_traffic_returns_log_items(client):
     response = client.get('/api/traffic/recent')
 
     assert response.status_code == 200
-    assert response.get_json() == {'items': []}
+    assert response.get_json() == {
+        'items': [],
+        'page': 1,
+        'page_size': 20,
+        'total': 0,
+        'total_pages': 1,
+    }
 
 
 @pytest.mark.parametrize('body', ['[]', 'null', '"text"', '1', 'true'])

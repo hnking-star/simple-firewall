@@ -4,6 +4,7 @@ from .repositories import (
     add_rule_update,
     create_rule,
     delete_rule,
+    count_logs,
     get_settings,
     get_stats,
     list_logs,
@@ -257,5 +258,24 @@ def rules_apply():
 
 @api.get('/traffic/recent')
 def traffic_recent():
-    """Return recent non-SSH traffic log items for monitor display."""
-    return jsonify({'items': list_logs(_database_path(), limit=50, exclude_ssh=True)})
+    """Return paginated recent non-SSH traffic log items for monitor display."""
+    page = max(request.args.get('page', default=1, type=int), 1)
+    page_size = request.args.get('page_size', default=20, type=int)
+    page_size = min(max(page_size, 10), 100)
+    offset = (page - 1) * page_size
+    database_path = _database_path()
+    total = count_logs(database_path, exclude_ssh=True)
+    total_pages = max((total + page_size - 1) // page_size, 1)
+    items = list_logs(
+        database_path,
+        limit=page_size,
+        offset=offset,
+        exclude_ssh=True,
+    )
+    return jsonify({
+        'items': items,
+        'page': page,
+        'page_size': page_size,
+        'total': total,
+        'total_pages': total_pages,
+    })
