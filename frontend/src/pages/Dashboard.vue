@@ -52,7 +52,7 @@ const statItems = [
 const totalPackets = computed(() => stats.value.blocked_count + stats.value.allowed_count)
 const blockedRate = computed(() => {
   if (!totalPackets.value) return 0
-  return Math.round((stats.value.blocked_count / totalPackets.value) * 100)
+  return Number(((stats.value.blocked_count / totalPackets.value) * 100).toFixed(2))
 })
 
 function initCharts() {
@@ -70,7 +70,7 @@ function renderCharts() {
   initCharts()
   if (gaugeChart) {
     gaugeChart.setOption({
-      tooltip: { formatter: '拦截占比：{c}%' },
+      tooltip: { formatter: ({ value }) => `拦截占比：${Number(value).toFixed(2)}%` },
       series: [
         {
           name: '拦截占比',
@@ -84,7 +84,12 @@ function renderCharts() {
           splitLine: { length: 12, lineStyle: { width: 2 } },
           pointer: { width: 5 },
           title: { offsetCenter: [0, '64%'], fontSize: 16 },
-          detail: { valueAnimation: true, formatter: '{value}%', fontSize: 30, offsetCenter: [0, '32%'] },
+          detail: {
+            valueAnimation: true,
+            formatter: (value) => `${Number(value).toFixed(2)}%`,
+            fontSize: 30,
+            offsetCenter: [0, '32%'],
+          },
           data: [{ value: blockedRate.value, name: '拦截占比' }],
         },
       ],
