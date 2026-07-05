@@ -1,6 +1,6 @@
 <template>
   <section>
-    <h2 class="page-title">日志审计</h2>
+    <h2 class="page-title">操作记录</h2>
     <p v-if="error" class="error">{{ error }}</p>
 
     <div class="card">

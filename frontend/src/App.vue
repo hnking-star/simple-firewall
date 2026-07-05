@@ -7,7 +7,7 @@
         <RouterLink to="/">首页概览</RouterLink>
         <RouterLink to="/rules">规则管理</RouterLink>
         <RouterLink to="/monitor">抓包监控</RouterLink>
-        <RouterLink to="/logs">日志审计</RouterLink>
+        <RouterLink to="/logs">操作记录</RouterLink>
         <RouterLink to="/settings">系统设置</RouterLink>
       </nav>
       <button class="logout-button" @click="logout">退出登录</button>
