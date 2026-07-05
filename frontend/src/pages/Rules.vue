@@ -22,7 +22,7 @@
       </div>
       <div class="actions">
         <button @click="parseRule">解析</button>
-        <button @click="saveRule">{{ editingId ? '更新并应用' : '保存并应用' }}</button>
+        <button @click="saveRule">{{ editingId ? '更新规则' : '保存规则' }}</button>
         <button v-if="editingId" class="secondary" @click="resetForm">取消编辑</button>
         <span v-if="message" class="message">{{ message }}</span>
         <span v-if="error" class="error">{{ error }}</span>
@@ -135,11 +135,10 @@ async function saveRule() {
     } else {
       await api.post('/rules', rulePayload())
     }
-    await applyRulesReal(false)
-    message.value = editingId.value ? '更新并应用成功' : '保存并应用成功'
+    message.value = editingId.value ? '更新成功，按当前更新模式生效' : '保存成功，按当前更新模式生效'
     await loadRules()
   } catch (err) {
-    error.value = errorMessage(err, '保存并应用失败')
+    error.value = errorMessage(err, '保存失败')
   }
 }
 
@@ -157,8 +156,7 @@ async function deleteRule(rule) {
     if (editingId.value === rule.id) {
       resetForm()
     }
-    await applyRulesReal(false)
-    message.value = '删除并应用成功'
+    message.value = '删除成功，按当前更新模式生效'
     await loadRules()
   } catch (err) {
     error.value = errorMessage(err, '删除失败')
@@ -172,23 +170,11 @@ async function toggleRule(rule) {
       ...rulePayload(rule),
       enabled: !rule.enabled,
     })
-    await applyRulesReal(false)
-    message.value = rule.enabled ? '已禁用并应用' : '已启用并应用'
+    message.value = rule.enabled ? '已禁用，按当前更新模式生效' : '已启用，按当前更新模式生效'
     await loadRules()
   } catch (err) {
     error.value = errorMessage(err, '操作失败')
   }
-}
-
-async function applyRulesReal(askConfirm = true) {
-  if (askConfirm && !window.confirm('确认真实写入 Linux iptables 吗？请勿添加拦截 SSH 22 的规则。')) {
-    return false
-  }
-  const { data } = await api.post('/rules/apply', {
-    dry_run: false,
-    confirm_apply: 'APPLY_IPTABLES',
-  })
-  return data
 }
 
 onMounted(loadRules)
