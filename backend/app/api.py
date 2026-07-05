@@ -195,8 +195,8 @@ def stats_show():
 
 @api.get('/logs')
 def logs_index():
-    """Return traffic logs."""
-    return jsonify({'items': list_logs(_database_path())})
+    """Return recent traffic logs for audit display."""
+    return jsonify({'items': list_logs(_database_path(), limit=200, exclude_ssh=True)})
 
 
 @api.get('/settings')
