@@ -396,3 +396,15 @@ def test_clear_rules_supports_dry_run(client):
     body = response.get_json()
     assert body['status'] == 'APPLIED'
     assert body['applied_count'] == 4
+
+
+def test_timed_update_mode_defers_immediate_apply(client):
+    client.put('/api/settings', json={'update_mode': 'timed', 'update_interval': '1'})
+
+    response = client.post('/api/rules', json={
+        'name': 'timed rule',
+        'dsl_text': 'DENY IN ICMP FROM ANY TO ANY SPORT ANY DPORT ANY',
+    })
+
+    assert response.status_code == 201
+    assert 'apply_result' not in response.get_json()
