@@ -2,6 +2,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from .repositories import (
     add_rule_update,
+    add_system_log,
     create_rule,
     delete_rule,
     count_logs,
@@ -10,6 +11,7 @@ from .repositories import (
     list_logs,
     list_pending_rule_updates,
     list_rules,
+    list_system_logs,
     update_rule,
     update_settings,
 )
@@ -115,6 +117,7 @@ def rules_create():
         dsl_text=dsl_text,
     )
     add_rule_update(database_path, created['id'], 'CREATE')
+    add_system_log(database_path, 'INFO', '规则管理', f"新增规则 #{created['id']}：{created['name']}")
     apply_result = _maybe_apply_updates(database_path)
     if apply_result is not None:
         created['apply_result'] = apply_result
@@ -151,6 +154,7 @@ def rules_update(rule_id):
     if updated is None:
         return jsonify({'error': 'rule not found'}), 404
     add_rule_update(database_path, rule_id, 'UPDATE')
+    add_system_log(database_path, 'INFO', '规则管理', f"修改规则 #{rule_id}：{updated['name']}，启用={updated['enabled']}")
     apply_result = _maybe_apply_updates(database_path)
     if apply_result is not None:
         updated['apply_result'] = apply_result
@@ -161,9 +165,11 @@ def rules_update(rule_id):
 def rules_delete(rule_id):
     """Delete a firewall rule."""
     database_path = _database_path()
+    before = next((rule for rule in list_rules(database_path) if rule['id'] == rule_id), None)
     if not delete_rule(database_path, rule_id):
         return jsonify({'error': 'rule not found'}), 404
     add_rule_update(database_path, rule_id, 'DELETE')
+    add_system_log(database_path, 'WARN', '规则管理', f"删除规则 #{rule_id}：{before['name'] if before else '未知'}")
     body = {'deleted': True, 'id': rule_id}
     apply_result = _maybe_apply_updates(database_path)
     if apply_result is not None:
@@ -195,8 +201,8 @@ def stats_show():
 
 @api.get('/logs')
 def logs_index():
-    """Return recent traffic logs for audit display."""
-    return jsonify({'items': list_logs(_database_path(), limit=200, exclude_ssh=True)})
+    """Return recent system operation logs for audit display."""
+    return jsonify({'items': list_system_logs(_database_path(), limit=200)})
 
 
 @api.get('/settings')
@@ -213,23 +219,31 @@ def settings_update():
         return error
     if data.get('update_mode') not in (None, 'immediate', 'timed', 'counted'):
         return _bad_request('update_mode must be immediate, timed, or counted')
-    return jsonify(update_settings(_database_path(), data))
+    database_path = _database_path()
+    result = update_settings(database_path, data)
+    add_system_log(database_path, 'INFO', '系统设置', '更新系统设置')
+    return jsonify(result)
 
 
 @api.post('/sniffer/start')
 def sniffer_start():
     """Start the packet sniffer service."""
     settings = get_settings(_database_path())
-    return jsonify(sniffer_service.start(
-        _database_path(),
+    database_path = _database_path()
+    result = sniffer_service.start(
+        database_path,
         interface=settings.get('interface', 'any'),
-    ))
+    )
+    add_system_log(database_path, 'INFO', '抓包监控', '启动抓包服务')
+    return jsonify(result)
 
 
 @api.post('/sniffer/stop')
 def sniffer_stop():
     """Stop the packet sniffer service."""
-    return jsonify(sniffer_service.stop())
+    result = sniffer_service.stop()
+    add_system_log(_database_path(), 'INFO', '抓包监控', '停止抓包服务')
+    return jsonify(result)
 
 
 @api.get('/sniffer/status')
@@ -254,6 +268,7 @@ def rules_apply():
         ):
             return _bad_request('real iptables apply requires iptables_enabled=true and confirm_apply=APPLY_IPTABLES')
     result = RuleUpdateService(database_path).apply_enabled_rules(dry_run=dry_run)
+    add_system_log(database_path, 'INFO', '规则应用', f"{'模拟' if dry_run else '真实'}应用规则，命令数={result['applied_count']}")
     return jsonify(result)
 
 
@@ -275,6 +290,7 @@ def rules_clear():
         ):
             return _bad_request('real iptables clear requires iptables_enabled=true and confirm_apply=APPLY_IPTABLES')
     result = RuleUpdateService(database_path).clear_rules(dry_run=dry_run)
+    add_system_log(database_path, 'WARN', '规则应用', f"{'模拟' if dry_run else '真实'}清除本系统规则")
     return jsonify(result)
 
 

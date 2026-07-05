@@ -279,3 +279,27 @@ button.danger {
   color: #047857;
   background: #d1fae5;
 }
+
+.level-badge {
+  display: inline-block;
+  min-width: 54px;
+  padding: 3px 8px;
+  font-weight: 700;
+  text-align: center;
+  border-radius: 999px;
+}
+
+.level-badge.info {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.level-badge.warn {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.level-badge.error {
+  color: #b91c1c;
+  background: #fee2e2;
+}

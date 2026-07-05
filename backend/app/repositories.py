@@ -292,6 +292,39 @@ def insert_traffic_log(database_path, record):
         conn.close()
 
 
+def add_system_log(database_path, level, module, message):
+    """Insert one system operation log row."""
+    conn = connect_db(database_path)
+    try:
+        cursor = conn.execute(
+            """
+            INSERT INTO system_logs (timestamp, level, module, message)
+            VALUES (datetime('now', 'localtime'), ?, ?, ?)
+            """,
+            (level, module, message),
+        )
+        conn.commit()
+        row = conn.execute(
+            'SELECT * FROM system_logs WHERE id = ?', (cursor.lastrowid,)
+        ).fetchone()
+        return row_to_plain_dict(row)
+    finally:
+        conn.close()
+
+
+def list_system_logs(database_path, limit=200):
+    """Return recent system operation logs ordered newest first."""
+    conn = connect_db(database_path)
+    try:
+        rows = conn.execute(
+            'SELECT * FROM system_logs ORDER BY timestamp DESC, id DESC LIMIT ?',
+            (int(limit),),
+        ).fetchall()
+        return [row_to_plain_dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
 def get_stats(database_path):
     """Return aggregate firewall counters for the API."""
     conn = connect_db(database_path)

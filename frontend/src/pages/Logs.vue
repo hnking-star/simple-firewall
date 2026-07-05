@@ -6,22 +6,22 @@
     <div class="card">
       <div class="grid form-grid">
         <label>
-          动作
-          <select v-model="filters.action">
+          级别
+          <select v-model="filters.level">
             <option value="">全部</option>
-            <option v-for="action in actionOptions" :key="action" :value="action">{{ action }}</option>
+            <option v-for="level in levelOptions" :key="level" :value="level">{{ level }}</option>
           </select>
         </label>
         <label>
-          协议
-          <select v-model="filters.protocol">
+          模块
+          <select v-model="filters.module">
             <option value="">全部</option>
-            <option v-for="protocol in protocolOptions" :key="protocol" :value="protocol">{{ protocol }}</option>
+            <option v-for="module in moduleOptions" :key="module" :value="module">{{ module }}</option>
           </select>
         </label>
         <label>
-          IP 关键词
-          <input v-model.trim="filters.ip" placeholder="源或目标 IP" />
+          关键词
+          <input v-model.trim="filters.keyword" placeholder="搜索操作内容" />
         </label>
       </div>
       <div class="actions">
@@ -34,24 +34,19 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th><th>时间</th><th>源</th><th>目标</th><th>协议</th><th>方向</th><th>动作</th><th>规则</th><th>长度</th><th>原因</th>
+            <th>ID</th><th>时间</th><th>级别</th><th>模块</th><th>操作内容</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="log in filteredLogs" :key="log.id">
             <td>{{ log.id }}</td>
             <td>{{ log.timestamp }}</td>
-            <td>{{ log.src_ip }}:{{ log.src_port }}</td>
-            <td>{{ log.dst_ip }}:{{ log.dst_port }}</td>
-            <td>{{ log.protocol }}</td>
-            <td>{{ log.direction }}</td>
-            <td><span :class="['action-badge', log.action === 'DENY' ? 'deny' : 'allow']">{{ log.action }}</span></td>
-            <td>{{ log.rule_id || '-' }}</td>
-            <td>{{ log.packet_len }}</td>
-            <td>{{ log.reason || '-' }}</td>
+            <td><span :class="['level-badge', String(log.level).toLowerCase()]">{{ log.level }}</span></td>
+            <td>{{ log.module || '-' }}</td>
+            <td>{{ log.message }}</td>
           </tr>
           <tr v-if="filteredLogs.length === 0">
-            <td colspan="10">暂无日志</td>
+            <td colspan="5">暂无日志</td>
           </tr>
         </tbody>
       </table>
@@ -64,23 +59,17 @@ import { computed, onMounted, ref } from 'vue'
 import api, { errorMessage } from '../api/client'
 
 const logs = ref([])
-const filters = ref({
-  action: '',
-  protocol: '',
-  ip: '',
-})
+const filters = ref({ level: '', module: '', keyword: '' })
 const error = ref('')
 
-const actionOptions = computed(() => uniqueValues('action'))
-const protocolOptions = computed(() => uniqueValues('protocol'))
+const levelOptions = computed(() => uniqueValues('level'))
+const moduleOptions = computed(() => uniqueValues('module'))
 const filteredLogs = computed(() => logs.value.filter((log) => {
-  const ipKeyword = filters.value.ip.toLowerCase()
-  const matchesAction = !filters.value.action || log.action === filters.value.action
-  const matchesProtocol = !filters.value.protocol || log.protocol === filters.value.protocol
-  const matchesIp = !ipKeyword
-    || String(log.src_ip || '').toLowerCase().includes(ipKeyword)
-    || String(log.dst_ip || '').toLowerCase().includes(ipKeyword)
-  return matchesAction && matchesProtocol && matchesIp
+  const keyword = filters.value.keyword.toLowerCase()
+  const matchesLevel = !filters.value.level || log.level === filters.value.level
+  const matchesModule = !filters.value.module || log.module === filters.value.module
+  const matchesKeyword = !keyword || String(log.message || '').toLowerCase().includes(keyword)
+  return matchesLevel && matchesModule && matchesKeyword
 }))
 
 function uniqueValues(key) {
@@ -103,18 +92,8 @@ function csvValue(value) {
 
 function exportCsv() {
   const columns = [
-    ['id', 'ID'],
-    ['timestamp', '时间'],
-    ['src_ip', '源 IP'],
-    ['src_port', '源端口'],
-    ['dst_ip', '目标 IP'],
-    ['dst_port', '目标端口'],
-    ['protocol', '协议'],
-    ['direction', '方向'],
-    ['action', '动作'],
-    ['rule_id', '规则'],
-    ['packet_len', '长度'],
-    ['reason', '原因'],
+    ['id', 'ID'], ['timestamp', '时间'], ['level', '级别'],
+    ['module', '模块'], ['message', '操作内容'],
   ]
   const rows = [
     columns.map(([, label]) => csvValue(label)).join(','),
@@ -124,7 +103,7 @@ function exportCsv() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = 'traffic-logs.csv'
+  link.download = 'system-audit-logs.csv'
   link.click()
   URL.revokeObjectURL(url)
 }
