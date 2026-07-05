@@ -4,20 +4,20 @@
     <p v-if="error" class="error">{{ error }}</p>
 
     <div class="grid stats-grid">
-      <div v-for="item in statItems" :key="item.key" class="card">
-        <div>{{ item.label }}</div>
+      <div v-for="item in statItems" :key="item.key" class="card stat-card">
+        <div class="stat-label">{{ item.label }}</div>
         <div class="stat-value">{{ stats[item.key] }}</div>
       </div>
     </div>
 
     <div class="chart-row">
       <div class="card">
-        <h3>访问趋势</h3>
-        <div ref="lineEl" class="chart"></div>
+        <h3>安全态势</h3>
+        <div ref="gaugeEl" class="chart"></div>
       </div>
       <div class="card">
-        <h3>拦截占比</h3>
-        <div ref="pieEl" class="chart"></div>
+        <h3>处理结果统计</h3>
+        <div ref="barEl" class="chart"></div>
       </div>
     </div>
   </section>
@@ -34,12 +34,11 @@ const stats = ref({
   active_connections: 0,
   enabled_rules: 0,
 })
-const history = ref([])
 const error = ref('')
-const lineEl = ref(null)
-const pieEl = ref(null)
-let lineChart = null
-let pieChart = null
+const gaugeEl = ref(null)
+const barEl = ref(null)
+let gaugeChart = null
+let barChart = null
 let timer = null
 let alive = false
 
@@ -50,44 +49,63 @@ const statItems = [
   { key: 'enabled_rules', label: '启用规则' },
 ]
 
-const labels = computed(() => history.value.map((item) => item.time))
+const totalPackets = computed(() => stats.value.blocked_count + stats.value.allowed_count)
+const blockedRate = computed(() => {
+  if (!totalPackets.value) return 0
+  return Math.round((stats.value.blocked_count / totalPackets.value) * 100)
+})
 
 function initCharts() {
   if (!alive) return
-  if (!lineChart && lineEl.value) {
-    lineChart = echarts.init(lineEl.value)
+  if (!gaugeChart && gaugeEl.value) {
+    gaugeChart = echarts.init(gaugeEl.value)
   }
-  if (!pieChart && pieEl.value) {
-    pieChart = echarts.init(pieEl.value)
+  if (!barChart && barEl.value) {
+    barChart = echarts.init(barEl.value)
   }
 }
 
 function renderCharts() {
   if (!alive) return
   initCharts()
-  if (lineChart) {
-    lineChart.setOption({
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['拦截', '放行'] },
-      xAxis: { type: 'category', data: labels.value },
-      yAxis: { type: 'value' },
+  if (gaugeChart) {
+    gaugeChart.setOption({
+      tooltip: { formatter: '拦截占比：{c}%' },
       series: [
-        { name: '拦截', type: 'line', data: history.value.map((item) => item.blocked) },
-        { name: '放行', type: 'line', data: history.value.map((item) => item.allowed) },
+        {
+          name: '拦截占比',
+          type: 'gauge',
+          min: 0,
+          max: 100,
+          radius: '82%',
+          progress: { show: true, width: 14 },
+          axisLine: { lineStyle: { width: 14 } },
+          axisTick: { show: false },
+          splitLine: { length: 12, lineStyle: { width: 2 } },
+          pointer: { width: 5 },
+          title: { offsetCenter: [0, '64%'], fontSize: 16 },
+          detail: { valueAnimation: true, formatter: '{value}%', fontSize: 30, offsetCenter: [0, '32%'] },
+          data: [{ value: blockedRate.value, name: '拦截占比' }],
+        },
       ],
     })
   }
-  if (pieChart) {
-    pieChart.setOption({
-      tooltip: { trigger: 'item' },
+  if (barChart) {
+    barChart.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: 80, right: 32, top: 32, bottom: 32 },
+      xAxis: { type: 'value' },
+      yAxis: { type: 'category', data: ['拦截', '放行', '启用规则'] },
       series: [
         {
-          type: 'pie',
-          radius: '60%',
+          type: 'bar',
+          barWidth: 28,
           data: [
-            { name: '拦截', value: stats.value.blocked_count },
-            { name: '放行', value: stats.value.allowed_count },
+            { value: stats.value.blocked_count, itemStyle: { color: '#ef4444' } },
+            { value: stats.value.allowed_count, itemStyle: { color: '#22c55e' } },
+            { value: stats.value.enabled_rules, itemStyle: { color: '#2563eb' } },
           ],
+          label: { show: true, position: 'right' },
         },
       ],
     })
@@ -99,12 +117,6 @@ async function loadStats() {
     const { data } = await api.get('/stats')
     if (!alive) return
     stats.value = { ...stats.value, ...data }
-    history.value.push({
-      time: new Date().toLocaleTimeString(),
-      blocked: stats.value.blocked_count,
-      allowed: stats.value.allowed_count,
-    })
-    history.value = history.value.slice(-12)
     error.value = ''
     await nextTick()
     if (!alive) return
@@ -117,8 +129,8 @@ async function loadStats() {
 
 function resizeCharts() {
   if (!alive) return
-  lineChart?.resize()
-  pieChart?.resize()
+  gaugeChart?.resize()
+  barChart?.resize()
 }
 
 onMounted(() => {
@@ -132,9 +144,9 @@ onBeforeUnmount(() => {
   alive = false
   window.clearInterval(timer)
   window.removeEventListener('resize', resizeCharts)
-  lineChart?.dispose()
-  pieChart?.dispose()
-  lineChart = null
-  pieChart = null
+  gaugeChart?.dispose()
+  barChart?.dispose()
+  gaugeChart = null
+  barChart = null
 })
 </script>

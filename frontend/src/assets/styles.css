@@ -303,3 +303,12 @@ button.danger {
   color: #b91c1c;
   background: #fee2e2;
 }
+
+.stat-card {
+  border-top: 4px solid #2563eb;
+}
+
+.stat-label {
+  color: #6b7280;
+  font-weight: 600;
+}
