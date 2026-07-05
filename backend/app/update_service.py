@@ -29,11 +29,16 @@ class RuleUpdateService:
 
     def apply_enabled_rules(self, dry_run=True):
         """Apply enabled rules into isolated SIMPLE_FW_IN/OUT chains."""
+        # 取出待处理变更，收尾时统一标记为已应用/失败
         pending = list_pending_rule_updates(self.database_path)
+        # 初始化命令：创建并挂载本系统专用链，避免影响系统其他 iptables 规则
         commands = IptablesAdapter.prepare_commands()
+        # 全量重建：把每条启用规则都转成对应的 iptables 命令
         for row in list_enabled_rules(self.database_path):
             commands.append(IptablesAdapter.build_rule_command(dict_to_rule(row)))
+        # 批量执行；dry_run=True 时只生成命令不真正修改防火墙
         results = IptablesAdapter.run_many(commands, dry_run=dry_run)
+        # 标记变更状态并返回统一的执行结果
         return self._finish(pending, results, 'dry-run apply' if dry_run else 'iptables apply')
 
     def clear_rules(self, dry_run=True):
