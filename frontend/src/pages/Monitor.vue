@@ -45,7 +45,7 @@
             <td>{{ packet.dst_ip }}:{{ packet.dst_port }}</td>
             <td>{{ packet.protocol }}</td>
             <td>{{ packet.direction }}</td>
-            <td>{{ packet.action }}</td>
+            <td><span :class="['action-badge', packet.action === 'DENY' ? 'deny' : 'allow']">{{ packet.action }}</span></td>
             <td>{{ packet.rule_id || '-' }}</td>
             <td>{{ packet.packet_len }}</td>
             <td>{{ packet.reason || '-' }}</td>

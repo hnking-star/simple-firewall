@@ -45,7 +45,7 @@
             <td>{{ log.dst_ip }}:{{ log.dst_port }}</td>
             <td>{{ log.protocol }}</td>
             <td>{{ log.direction }}</td>
-            <td>{{ log.action }}</td>
+            <td><span :class="['action-badge', log.action === 'DENY' ? 'deny' : 'allow']">{{ log.action }}</span></td>
             <td>{{ log.rule_id || '-' }}</td>
             <td>{{ log.packet_len }}</td>
             <td>{{ log.reason || '-' }}</td>

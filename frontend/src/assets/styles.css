@@ -260,3 +260,22 @@ button.danger {
   margin-top: 24px;
   background: #374151;
 }
+
+.action-badge {
+  display: inline-block;
+  min-width: 56px;
+  padding: 3px 8px;
+  font-weight: 700;
+  text-align: center;
+  border-radius: 999px;
+}
+
+.action-badge.deny {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.action-badge.allow {
+  color: #047857;
+  background: #d1fae5;
+}
