@@ -1,3 +1,4 @@
+import subprocess
 import threading
 
 from scapy.layers.inet import ICMP, IP, TCP, UDP
@@ -6,12 +7,20 @@ from scapy.sendrecv import sniff
 from .repositories import insert_traffic_log, match_packet_rule
 
 
-def packet_to_record(packet, direction):
+def packet_to_record(packet, direction=None, local_ips=None):
     """Convert a Scapy IP packet into a traffic log record."""
     if IP not in packet:
         return None
 
     ip_layer = packet[IP]
+    local_ips = local_ips or set()
+    if direction is None:
+        if ip_layer.dst in local_ips:
+            direction = 'IN'
+        elif ip_layer.src in local_ips:
+            direction = 'OUT'
+        else:
+            direction = 'OUT'
     protocol = 'OTHER'
     src_port = 'ANY'
     dst_port = 'ANY'
@@ -38,6 +47,15 @@ def packet_to_record(packet, direction):
     }
 
 
+def get_local_ips():
+    """Return IPv4 addresses assigned to this host."""
+    try:
+        output = subprocess.check_output(['hostname', '-I'], text=True, timeout=1)
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    return {ip for ip in output.split() if '.' in ip}
+
+
 class SnifferService:
     """Manage a background Scapy packet sniffer."""
 
@@ -46,6 +64,7 @@ class SnifferService:
         self.running = False
         self._stop_event = threading.Event()
         self._thread = None
+        self._local_ips = set()
 
     def start(self, database_path=None, interface='any'):
         """Start sniffing packets in a background thread."""
@@ -53,6 +72,7 @@ class SnifferService:
             return {'running': True}
         self.running = True
         self._stop_event.clear()
+        self._local_ips = get_local_ips()
         if database_path is None:
             return {'running': True}
         self._thread = threading.Thread(
@@ -77,9 +97,11 @@ class SnifferService:
         self.running = self.running and alive
         return {'running': self.running}
 
-    def handle_packet(self, packet, database_path, direction='OUT'):
+    def handle_packet(self, packet, database_path, direction=None):
         """Convert one packet to a traffic log row and persist it."""
-        record = packet_to_record(packet, direction)
+        if not self._local_ips:
+            self._local_ips = get_local_ips()
+        record = packet_to_record(packet, direction, self._local_ips)
         if record is None:
             return None
         matched_rule = match_packet_rule(database_path, record)

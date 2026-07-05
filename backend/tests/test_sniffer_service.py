@@ -1,6 +1,6 @@
 from scapy.layers.inet import IP, TCP
 
-from app.sniffer_service import SnifferService, packet_to_record
+from app.sniffer_service import SnifferService, get_local_ips, packet_to_record
 
 
 def test_packet_to_record_extracts_ip_tcp_fields():
@@ -47,3 +47,20 @@ def test_sniffer_handle_packet_inserts_traffic_log(db_path, db_connection):
     assert logs[0]['action'] == 'DENY'
     assert logs[0]['rule_id'] == created['id']
     assert logs[0]['reason'] == f"matched rule {created['id']}"
+
+
+def test_packet_to_record_detects_inbound_direction():
+    packet = IP(src='203.0.113.10', dst='10.0.0.2') / TCP(sport=12345, dport=443)
+
+    record = packet_to_record(packet, local_ips={'10.0.0.2'})
+
+    assert record['direction'] == 'IN'
+
+
+def test_get_local_ips_returns_empty_set_when_command_fails(monkeypatch):
+    def fail(*args, **kwargs):
+        raise OSError('missing command')
+
+    monkeypatch.setattr('app.sniffer_service.subprocess.check_output', fail)
+
+    assert get_local_ips() == set()
