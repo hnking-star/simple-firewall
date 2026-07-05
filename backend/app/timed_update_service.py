@@ -1,5 +1,6 @@
 import threading
 import time
+from datetime import datetime
 
 from .repositories import (
     add_system_log,
@@ -33,15 +34,38 @@ class TimedUpdateService:
 
     def _run(self):
         """Loop until stopped and apply pending updates at configured intervals."""
-        last_apply = 0
         while not self._stop_event.is_set():
-            settings = get_settings(self.database_path)
-            interval = max(int(settings.get('update_interval', '30')), 1)
-            now = time.time()
-            if now - last_apply >= interval:
-                if apply_timed_updates_once(self.database_path):
-                    last_apply = now
+            try:
+                apply_due_timed_updates_once(self.database_path)
+            except Exception as exc:
+                add_system_log(
+                    self.database_path,
+                    'ERROR',
+                    '规则应用',
+                    f'定时更新失败：{exc}',
+                )
             self._stop_event.wait(1)
+
+
+def _pending_update_due(pending, interval, now=None):
+    """Return whether the oldest pending update has waited long enough."""
+    if not pending:
+        return False
+    now = now or datetime.now()
+    created_at = datetime.strptime(pending[0]['created_at'], '%Y-%m-%d %H:%M:%S')
+    return (now - created_at).total_seconds() >= interval
+
+
+def apply_due_timed_updates_once(database_path, now=None):
+    """Apply pending timed updates only after the configured interval passes."""
+    settings = get_settings(database_path)
+    if settings.get('update_mode') != 'timed':
+        return None
+    pending = list_pending_rule_updates(database_path)
+    interval = max(int(settings.get('update_interval', '30')), 1)
+    if not _pending_update_due(pending, interval, now=now):
+        return None
+    return apply_timed_updates_once(database_path)
 
 
 def apply_timed_updates_once(database_path):
