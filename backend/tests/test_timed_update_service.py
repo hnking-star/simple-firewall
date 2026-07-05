@@ -70,3 +70,18 @@ def test_due_timed_updates_apply_after_interval_passes(db_path):
 
     assert result['status'] == 'APPLIED'
     assert list_pending_rule_updates(str(db_path)) == []
+
+
+def test_due_timed_updates_do_not_apply_immediately(db_path):
+    init_db(str(db_path))
+    update_settings(str(db_path), {
+        'update_mode': 'timed',
+        'update_interval': '30',
+        'iptables_enabled': False,
+    })
+    _queue_rule(db_path)
+
+    result = apply_due_timed_updates_once(str(db_path))
+
+    assert result is None
+    assert len(list_pending_rule_updates(str(db_path))) == 1

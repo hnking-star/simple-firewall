@@ -1,6 +1,5 @@
 import threading
-import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 from .repositories import (
     add_system_log,
@@ -51,7 +50,7 @@ def _pending_update_due(pending, interval, now=None):
     """Return whether the oldest pending update has waited long enough."""
     if not pending:
         return False
-    now = now or datetime.now()
+    now = now or datetime.now(UTC).replace(tzinfo=None)
     created_at = datetime.strptime(pending[0]['created_at'], '%Y-%m-%d %H:%M:%S')
     return (now - created_at).total_seconds() >= interval
 
